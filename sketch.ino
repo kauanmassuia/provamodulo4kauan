@@ -1,61 +1,61 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
 
-// Definições dos pinos dos LEDs
+// Pinos dos LEDs
 #define led_azul 9
 #define led_verde 41
 #define led_vermelho 40
 #define led_amarelo 42
 
-// Definições dos pinos de entrada
+// Pinos dos sensores e botões
 const int botaoPin = 18;  // Pino do botão
 const int ldrPin = 4;     // Pino do sensor LDR
 
-// Limite para detecção de luz
+// Limiar para detecção de luz
 int limiar = 600;
 
-// Variáveis auxiliares
+// Variáveis de controle
 bool botaoPressionado = false;
 bool estadoAnteriorBotao = LOW;
 unsigned long ultimaMudancaEstado = 0;
 const unsigned long intervaloDebounce = 50; // 50 ms para debounce
 
-int contadorBotoes = 0; // Contador de pressionamentos do botão
+int contadorBotoes = 0; // Contador de vezes que o botão foi pressionado
 unsigned long tempoUltimoPressionamento = 0;
-const unsigned long intervaloResetContador = 5000; // 5 segundos para resetar o contador
+const unsigned long intervaloResetContador = 5000; // Reseta o contador depois de 5 segundos
 
 void setup() {
-  // Configuração dos pinos dos LEDs como saídas
+  // Configura os LEDs como saída
   pinMode(led_azul, OUTPUT);
   pinMode(led_verde, OUTPUT);
   pinMode(led_vermelho, OUTPUT);
   pinMode(led_amarelo, OUTPUT);
 
-  // Configuração inicial: todos os LEDs desligados
+  // No começo, desliga todos os LEDs
   digitalWrite(led_azul, LOW);
   digitalWrite(led_verde, LOW);
   digitalWrite(led_vermelho, LOW);
   digitalWrite(led_amarelo, LOW);
 
-  // Inicialização do botão e do sensor LDR como entradas
+  // Configura o botão e o LDR como entrada
   pinMode(botaoPin, INPUT);
   pinMode(ldrPin, INPUT);
 
-  // Configuração serial para debug
+  // Inicializa a comunicação serial para debug
   Serial.begin(9600);
 
-  // Conexão WiFi
+  // Conecta ao WiFi
   WiFi.begin("Wokwi-GUEST", "");
 
   while (WiFi.status() != WL_CONNECTED) {
     delay(100);
     Serial.print(".");
   }
-  Serial.println("Conectado ao WiFi com sucesso!");
+  Serial.println("Conectado ao WiFi!");
 }
 
 void loop() {
-  // Leitura do estado do LDR
+  // Lê o valor do LDR
   int statusLDR = analogRead(ldrPin);
 
   // Leitura do botão com debounce
@@ -71,44 +71,44 @@ void loop() {
       botaoPressionado = true; // Marca que o botão foi pressionado
       Serial.println("Botão pressionado!");
 
-      // Incrementa o contador e registra o tempo do pressionamento
+      // Incrementa o contador e guarda o tempo
       contadorBotoes++;
       tempoUltimoPressionamento = tempoAtual;
 
-      Serial.print("Pressionamentos acumulados: ");
+      Serial.print("Contagem de pressionamentos: ");
       Serial.println(contadorBotoes);
     }
   }
 
   estadoAnteriorBotao = leituraAtualBotao;
 
-  // Reseta o contador se o botão não for pressionado por um intervalo maior que o definido
+  // Reseta o contador se o botão não for pressionado por um tempo
   if (tempoAtual - tempoUltimoPressionamento > intervaloResetContador) {
     contadorBotoes = 0;
   }
 
-  // Verifica se o semáforo está no estado fechado e o botão foi pressionado 3 vezes
+  // Se o botão foi pressionado 3 vezes e o semáforo está fechado
   if (contadorBotoes >= 3 && digitalRead(led_vermelho) == HIGH) {
-    contadorBotoes = 0; // Reseta o contador após o envio do alerta
+    contadorBotoes = 0; // Reseta o contador depois de enviar o alerta
 
-    // Envia a requisição HTTP para o alerta
+    // Envia o alerta via HTTP
     if (WiFi.status() == WL_CONNECTED) {
       HTTPClient http;
-      String enderecoServidor = "http://www.google.com.br/"; // URL do alerta (exemplo)
+      String enderecoServidor = "http://www.google.com.br/"; // Exemplo de URL
 
       http.begin(enderecoServidor.c_str());
       int codigoRespostaHTTP = http.GET();
 
       if (codigoRespostaHTTP > 0) {
-        Serial.print("Código de resposta HTTP: ");
+        Serial.print("Resposta HTTP: ");
         Serial.println(codigoRespostaHTTP);
       } else {
-        Serial.print("Erro na requisição HTTP, código: ");
+        Serial.print("Erro na requisição HTTP: ");
         Serial.println(codigoRespostaHTTP);
       }
       http.end();
     } else {
-      Serial.println("WiFi desconectado. Não foi possível enviar o alerta.");
+      Serial.println("Sem WiFi. Não deu pra enviar o alerta.");
     }
   }
 
@@ -116,7 +116,7 @@ void loop() {
 
   // Controle do semáforo
   if (statusLDR <= limiar) {
-    // Modo noturno: piscar o LED amarelo
+    // Modo noturno: LED amarelo pisca
     digitalWrite(led_verde, LOW);
     digitalWrite(led_vermelho, LOW);
     digitalWrite(led_amarelo, HIGH);
@@ -124,7 +124,7 @@ void loop() {
     digitalWrite(led_amarelo, LOW);
     delay(500);
   } else {
-    // Modo convencional
+    // Modo normal
     digitalWrite(led_verde, HIGH);
     delay(3000);
     digitalWrite(led_verde, LOW);
